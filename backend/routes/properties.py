@@ -6,7 +6,7 @@ PATCH /properties/{id} for correcting a saved listing.
 import os
 import uuid
 from typing import Optional
-
+from datetime import date as date_type
 from fastapi import APIRouter, Form, HTTPException, UploadFile
 from pydantic import BaseModel
 
@@ -157,7 +157,7 @@ async def confirm_property(
         storage_path, file_bytes, {"content-type": "application/pdf"}
     )
 
-    handover_date_clean = handover_date if handover_date else None
+    handover_date_clean = date_type.fromisoformat(handover_date) if handover_date else None
 
     pool = get_pool()
     row = await pool.fetchrow(
@@ -185,6 +185,8 @@ async def confirm_property(
 @router.patch("/{property_id}", response_model=PropertyOut)
 async def update_property(property_id: str, updates: PropertyUpdate):
     fields = {k: v for k, v in updates.model_dump().items() if v is not None}
+    if "handover_date" in fields and fields["handover_date"]:
+        fields["handover_date"] = date_type.fromisoformat(fields["handover_date"])
     if not fields:
         raise HTTPException(status_code=400, detail="No fields provided to update")
 
