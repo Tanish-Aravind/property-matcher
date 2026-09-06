@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 300 110" role="img" aria-labelledby="title">
+  <title id="title">Foyrs — real estate solved</title>
+  <path fill="#2e2d3a" d="M10 21C45-4 117 4 167 16c49 12 100 43 111 76H9C-4 68-4 37 10 21Z"/>
+  <g fill="#f7f7f5">
+    <path d="M247 12l3.7 13.3L264 29l-13.3 3.7L247 46l-3.7-13.3L230 29l13.3-3.7L247 12Z"/>
+    <path d="M270 47l1.4 5.1 5.1 1.4-5.1 1.4-1.4 5.1-1.4-5.1-5.1-1.4 5.1-1.4 1.4-5.1Z" opacity=".85"/>
+    <text x="39" y="65" font-family="Arial Rounded MT Bold, Arial, sans-serif" font-size="48" font-weight="700" letter-spacing="-3">foyrs</text>
+    <text x="91" y="85" font-family="Arial, sans-serif" font-size="12" letter-spacing=".2">real estate solved</text>
+  </g>
+</svg>
