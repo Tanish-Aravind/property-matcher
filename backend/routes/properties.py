@@ -148,22 +148,29 @@ async def confirm_property(
 
     file_bytes = await brochure.read()
 
+    t0 = time.perf_counter()
     try:
         brochure_text = extract_text_from_pdf(file_bytes)
     except ValueError as e:
         raise HTTPException(status_code=422, detail=str(e))
+    print(f"[timing] confirm: pdf re-extract: {time.perf_counter() - t0:.2f}s")
 
+    t1 = time.perf_counter()
     embedding = await generate_embedding(summary)
+    print(f"[timing] confirm: embedding: {time.perf_counter() - t1:.2f}s")
 
+    t2 = time.perf_counter()
     from supabase import create_client
     supabase = create_client(os.environ["SUPABASE_URL"], os.environ["SUPABASE_SERVICE_ROLE_KEY"])
     storage_path = f"{agent_id}/{uuid.uuid4()}.pdf"
     supabase.storage.from_("brochures").upload(
         storage_path, file_bytes, {"content-type": "application/pdf"}
     )
+    print(f"[timing] confirm: storage upload: {time.perf_counter() - t2:.2f}s")
 
     handover_date_clean = date_type.fromisoformat(handover_date) if handover_date else None
 
+    t3 = time.perf_counter()
     pool = get_pool()
     row = await pool.fetchrow(
         """
@@ -183,6 +190,7 @@ async def confirm_property(
         balconies, parking_spots, area_sqft, facing, building_height_type,
         handover_status, handover_date_clean, embedding,
     )
+    print(f"[timing] confirm: db insert: {time.perf_counter() - t3:.2f}s")
 
     return _row_to_out(row)
 
