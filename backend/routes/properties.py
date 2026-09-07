@@ -3,7 +3,9 @@
  2) POST /properties/confirm  - agent-reviewed fields + summary + re-sent PDF -> embed -> store
 PATCH /properties/{id} for correcting a saved listing.
 """
+import asyncio
 import os
+import time
 import uuid
 from typing import Optional
 from datetime import date as date_type
@@ -97,12 +99,15 @@ async def extract_property(brochure: UploadFile = None):
     except ValueError as e:
         raise HTTPException(status_code=422, detail=str(e))
 
+    t0 = time.perf_counter()
     try:
-        fields = await extract_property_fields(brochure_text)
+        fields, summary = await asyncio.gather(
+            extract_property_fields(brochure_text),
+            generate_summary(brochure_text),
+        )
     except Exception as e:
         raise HTTPException(status_code=422, detail=f"Could not extract property details from PDF: {e}")
-
-    summary = await generate_summary(brochure_text)
+    print(f"[timing] extraction+summary: {time.perf_counter() - t0:.2f}s")
 
     return ExtractedFields(
         title=fields["title"], price=fields["price"], bedrooms=fields["bedrooms"],

@@ -2,9 +2,11 @@
 If the full filter set returns nothing, progressively drop secondary constraints before
 falling back to pure similarity search — so one mismatched detail doesn't zero everything out.
 """
+import asyncio
+import time
 from typing import Optional
 
-from fastapi import APIRouter
+from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
 
 from ai import extract_search_filters, generate_embedding, rerank_candidates
@@ -100,10 +102,17 @@ async def _run_query(pool, active: list[tuple[str, str, object]], query_embeddin
 async def search_properties(req: SearchRequest):
     pool = get_pool()
 
-    try:
-        extracted = await extract_search_filters(req.query)
-    except Exception:
-        extracted = {}
+    t0 = time.perf_counter()
+    results = await asyncio.gather(
+        extract_search_filters(req.query),
+        generate_embedding(req.query),
+        return_exceptions=True,
+    )
+    extracted = results[0] if not isinstance(results[0], Exception) else {}
+    query_embedding = results[1]
+    if isinstance(query_embedding, Exception):
+        raise HTTPException(status_code=502, detail=f"Embedding failed: {query_embedding}")
+    print(f"[timing] filter+embedding: {time.perf_counter() - t0:.2f}s")
 
     min_price = req.min_price if req.min_price is not None else extracted.get("min_price")
     max_price = req.max_price if req.max_price is not None else extracted.get("max_price")
@@ -151,10 +160,9 @@ async def search_properties(req: SearchRequest):
     elif extracted.get("bedrooms") is not None:
         all_conditions.append(("bedrooms", "bedrooms = {idx}", extracted["bedrooms"]))
 
-    query_embedding = await generate_embedding(req.query)
-
     relaxed: list[str] = []
     active = list(all_conditions)
+    t1 = time.perf_counter()
     rows = await _run_query(pool, active, query_embedding, req.limit)
 
     for drop_name in RELAX_ORDER:
@@ -165,6 +173,8 @@ async def search_properties(req: SearchRequest):
         active = [c for c in active if c[0] != drop_name]
         relaxed.append(drop_name)
         rows = await _run_query(pool, active, query_embedding, req.limit)
+
+    print(f"[timing] db query incl. relaxation: {time.perf_counter() - t1:.2f}s")
 
     return SearchResponse(
         candidates=[
